@@ -26,7 +26,6 @@ class GFAL2Impl(StageOutImpl):
         # GFAL2 is not build under COMP environment and it had failures with mixed environment.
         self.setups = "env -i X509_USER_PROXY=$X509_USER_PROXY JOBSTARTDIR=$JOBSTARTDIR bash -c '%s'"
         self.removeCommand = self.setups % '. $JOBSTARTDIR/startup_environment.sh; date; gfal-rm -t 600 %s '
-        self.copyCommand = self.setups % '. $JOBSTARTDIR/startup_environment.sh; date; gfal-copy -t 2400 -T 2400 -p %(checksum)s %(options)s %(source)s %(destination)s'
         self.copyOpts = '-t 2400 -T 2400 -p -v --abort-on-failure %(checksum)s %(options)s %(source)s %(destination)s'
         self.copyCommand = self.setups % ('. $JOBSTARTDIR/startup_environment.sh; date; gfal-copy ' + self.copyOpts)
 
@@ -126,11 +125,14 @@ class GFAL2Impl(StageOutImpl):
             echo "gfal-copy exit status: $EXIT_STATUS"
             if [[ $EXIT_STATUS != 0 ]]; then
                echo "ERROR: gfal-copy exited with $EXIT_STATUS"
+               echo "Actual command which failed: %s"
+               echo "Source PFN: %s"
+               echo "Target PFN %s"
                echo "Cleaning up failed file:"
                %s
             fi
             exit $EXIT_STATUS
-            """ % self.createRemoveFileCommand(targetPFN)
+            """ % copyCommand copyCommandDict['source'] copyCommandDict['destination'] self.createRemoveFileCommand(targetPFN)
 
         return result
 
