@@ -143,6 +143,16 @@ class StageOutImpl(object):
         """
         raise NotImplementedError("StageOutImpl.createStageOutCommand")
 
+    def createDebuggingCommand(self, sourcePFN, targetPFN, options=None, checksums=None):
+        """
+        _createDebuggingCommand_
+
+        Build a shell command that will report in the logs the details about
+        failing stageOut commands
+
+        """
+        raise NotImplementedError("StageOutImpl.createDebuggingCommand")
+
     def removeFile(self, pfnToRemove):
         """
         _removeFile_
@@ -212,6 +222,7 @@ class StageOutImpl(object):
         # // Run the command
         # //
 
+        stageOutEx = None #variable to store the possible StageOutError
         for retryCount in range(self.numRetries + 1):
             try:
                 logging.info("Running the stage out...")
@@ -224,10 +235,15 @@ class StageOutImpl(object):
                 logging.error(msg)
                 if retryCount == self.numRetries:
                     #  //
-                    # // last retry, propagate exception
+                    # // last retry, propagate the information outside of the for loop
                     # //
-                    raise ex
+                    stageOutEx = ex
                 time.sleep(self.retryPause)
 
+        if stageOutEx is not None:
+            command = self.createDebuggingCommand(sourcePFN, targetPFN, options, checksums)
+            self.executeCommand(command)
+            raise stageOutEx
+            
         # should never reach this point
         return

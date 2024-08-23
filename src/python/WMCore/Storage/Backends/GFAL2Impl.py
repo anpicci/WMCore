@@ -136,6 +136,49 @@ class GFAL2Impl(StageOutImpl):
 
         return result
 
+    def createDebuggingCommand(self, sourcePFN, targetPFN, options=None, checksums=None):
+        """
+        _createDebuggingCommand_
+        Report environment information about a failed gfal-copy command
+        
+        """
+        result = "#!/bin/bash\n"
+
+        copyCommandDict = {'checksum': '', 'options': '', 'source': '', 'destination': ''}
+
+        useChecksum = (checksums is not None and 'adler32' in checksums and not self.stageIn)
+
+        if not options:
+            options = ''
+
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--nochecksum', action='store_true')
+        args, unknown = parser.parse_known_args(options.split())
+
+        if not args.nochecksum:
+            if useChecksum:
+                checksums['adler32'] = "%08x" % int(checksums['adler32'], 16)
+                copyCommandDict['checksum'] = "-K adler32:%s" % checksums['adler32']
+            else:
+                copyCommandDict['checksum'] = "-K adler32"
+
+        copyCommandDict['options'] = ' '.join(unknown)
+
+        copyCommandDict['source'] = self.createFinalPFN(sourcePFN)
+        copyCommandDict['destination'] = self.createFinalPFN(targetPFN)
+
+        result += copyCommand
+        
+        result += """
+            echo "gfal-copy command which failed: %s"
+            echo "Source PFN: %s"
+            echo "Target PFN: %s"
+            echo "Proxy and JOBSTARTDIR: %s" 
+            """ % copyCommand copyCommandDict['source'] copyCommandDict['destination'] self.setups
+
+        return result
+
+    
     def removeFile(self, pfnToRemove):
         """
         _removeFile_
