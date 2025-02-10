@@ -241,6 +241,7 @@ class StageOutImpl:
         # //
         # // Create the command to be used.
         # //
+        # // This will actually only enforce the definition of the bearer token variables, still x509 auth activated as a backup
         try:
             command = self.createStageOutCommand(sourcePFN, targetPFN, options, checksums, authmethod="TOKEN")
         except TypeError as ex:
@@ -253,12 +254,9 @@ class StageOutImpl:
         stageOutEx = None  # variable to store the possible StageOutError
         for retryCount in range(self.numRetries + 1):
             try:
-                logging.info("Running the stage out with tokens (attempt %d)...", retryCount + 1)
+                logging.info("Running the stage out with the available auth method (attempt %d)...", retryCount + 1)
                 logging.info("Command to run: %s", command)
                 self.executeCommand(command)
-                # to remove once understood gfal behavior
-                debcommand = self.createDebuggingCommand(sourcePFN, targetPFN, options, checksums, auth_method="TOKEN")
-                self.executeCommand(debcommand)
                 logging.info("\nStage-out succeeded with the current environment.")
                 break
 
@@ -266,7 +264,6 @@ class StageOutImpl:
                 msg = "Attempt {} to stage out failed with default setup.\n".format(retryCount)
                 msg += "Error details:\n{}\n".format(str(ex))
                 logging.error(msg)
-
                 logging.info("Retrying with authentication-safe logic...")
 
                 # Authentication-safe fallback logic
@@ -275,7 +272,7 @@ class StageOutImpl:
                     command = self.createStageOutCommand(sourcePFN, targetPFN, options, checksums, authmethod="X509", forcemethod=True)
                     try:
                         self.executeCommand(command)
-                        logging.info("Stage-out succeeded with X509 after unsetting BEARER_TOKEN.")
+                        logging.info("Stage-out succeeded with X509 with BEARER_TOKEN unset.")
                         return
                     except StageOutError as fallbackEx:
                         logging.warning("Fallback with X509_USER_PROXY failed:\n%s", str(fallbackEx))
@@ -285,7 +282,7 @@ class StageOutImpl:
                     command = self.createStageOutCommand(sourcePFN, targetPFN, options, checksums, authmethod="TOKEN", forcemethod=True)
                     try:
                         self.executeCommand(command)
-                        logging.info("Stage-out succeeded with TOKEN after unsetting X509_USER_PROXY.")
+                        logging.info("Stage-out succeeded with TOKEN with X509_USER_PROXY unset.")
                         return
                     except StageOutError as fallbackEx:
                         logging.warning("Fallback with BEARER_TOKEN failed:\n%s", str(fallbackEx))
